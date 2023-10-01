@@ -14,9 +14,9 @@ bl_info = {
 import bpy
 import re
 
-class PT_RemoveCommentsPanel(bpy.types.Panel):
+class SNA_PT_RemoveCommentsPanel_367E1(bpy.types.Panel):
     bl_label = "删除注释"
-    bl_idname = "PT_RemoveCommentsPanel"
+    bl_idname = "SNA_PT_RemoveCommentsPanel_367E1"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = 'Tool'
@@ -141,7 +141,7 @@ class RemoveCommentsOperatorAll(bpy.types.Operator):##删除所有注释
         return {'FINISHED'}
 
 def register():
-    bpy.utils.register_class(PT_RemoveCommentsPanel)
+    bpy.utils.register_class(SNA_PT_RemoveCommentsPanel_367E1)
     bpy.utils.register_class(RemoveCommentsOperatorTail)
     bpy.utils.register_class(RemoveCommentsOperatorLines)
     bpy.utils.register_class(RemoveCommentsOperatorAll)
@@ -151,7 +151,7 @@ def register():
     )
 
 def unregister():
-    bpy.utils.unregister_class(PT_RemoveCommentsPanel)
+    bpy.utils.unregister_class(SNA_PT_RemoveCommentsPanel_367E1)
     bpy.utils.unregister_class(RemoveCommentsOperatorTail)
     bpy.utils.unregister_class(RemoveCommentsOperatorLines)
     bpy.utils.unregister_class(RemoveCommentsOperatorAll)
