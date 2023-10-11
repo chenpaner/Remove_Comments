@@ -31,6 +31,8 @@ class SNA_PT_RemoveCommentsPanel_367E1(bpy.types.Panel):
         row = layout.row()
         row.operator("script.remove_comments_operator_lines", text="删除整行注释")
         row = layout.row()
+        row.operator("script.remove_blank_lines_operator", text="删除空行")
+        row = layout.row()
         row.operator("script.remove_comments_operator_all", text="删除所有注释")
 
 class RemoveCommentsOperatorTail(bpy.types.Operator):##仅仅删除每行尾部的注释
@@ -105,6 +107,40 @@ class RemoveCommentsOperatorLines(bpy.types.Operator):##删除整行都是注释
 
         return {'FINISHED'}
 
+class RemoveBlankLinesOperator(bpy.types.Operator):
+    bl_idname = "script.remove_blank_lines_operator"
+    bl_label = "Remove Blank Lines"
+    bl_description = "Remove all blank lines from the file"
+
+    def execute(self, context):
+        filepath = context.scene.remove_comments_filepath
+        if filepath:
+            try:
+                # 打开文件以读取内容
+                with open(filepath, "r") as f:
+                    content = f.read()
+
+                # 使用正则表达式删除所有空白行
+                content = re.sub(r'\n\s*\n', '\n', content)
+
+                # 写回文件
+                with open(filepath, "w") as f:
+                    f.write(content)
+
+                # 统计删除的空白行数
+                deleted_lines_count = content.count('\n') - content.count('\n\n')
+
+                self.report({'INFO'}, f"Deleted {deleted_lines_count} blank lines from {filepath}")
+
+            except Exception as e:
+                self.report({'ERROR'}, "Error removing blank lines: " + str(e))
+        else:
+            self.report({'ERROR'}, "No file selected")
+
+        return {'FINISHED'}
+
+
+
 class RemoveCommentsOperatorAll(bpy.types.Operator):##删除所有注释
     bl_idname = "script.remove_comments_operator_all"
     bl_label = "Remove All Comments"
@@ -144,6 +180,7 @@ def register():
     bpy.utils.register_class(SNA_PT_RemoveCommentsPanel_367E1)
     bpy.utils.register_class(RemoveCommentsOperatorTail)
     bpy.utils.register_class(RemoveCommentsOperatorLines)
+    bpy.utils.register_class(RemoveBlankLinesOperator)
     bpy.utils.register_class(RemoveCommentsOperatorAll)
     bpy.types.Scene.remove_comments_filepath = bpy.props.StringProperty(
         subtype='FILE_PATH',
@@ -154,6 +191,7 @@ def unregister():
     bpy.utils.unregister_class(SNA_PT_RemoveCommentsPanel_367E1)
     bpy.utils.unregister_class(RemoveCommentsOperatorTail)
     bpy.utils.unregister_class(RemoveCommentsOperatorLines)
+    bpy.utils.unregister_class(RemoveBlankLinesOperator)
     bpy.utils.unregister_class(RemoveCommentsOperatorAll)
     del bpy.types.Scene.remove_comments_filepath
 
