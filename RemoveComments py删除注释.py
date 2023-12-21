@@ -62,6 +62,9 @@ class SimplePoExtractor(bpy.types.Operator):#
                         new_file.write(extracted_text)
                         new_file.write(extracted_item)
 
+        #自动将文件设置为下面操作的路径                
+        context.scene.remove_comments_filepath = new_file_path
+
         self.report({'INFO'}, "提取完成")
         try:
             # 使用 DEV_OT_open_in_editor 打开新创建的 Python 文件
@@ -167,41 +170,44 @@ class SNA_PT_RemoveCommentsPanel_367E1(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-
-        row = layout.row()
-        row.prop(context.scene, "po_directory_dirpath")
-        row = layout.row()
-        row.operator("wm.simple_po_extractor")
-
-        layout = self.layout
-        row = layout.row()
+        layout.label(text="PY文件处理")
+        row = layout.box()
         row.prop(context.scene, "remove_comments_filepath")
-        row = layout.row()
+        #row = layout.row()
         row.operator("script.remove_comments_operator_tail", text="仅删行尾注释")
-        row = layout.row()
+        #row = layout.row()
         row.operator("script.remove_comments_operator_lines", text="删除整行注释")
-        row = layout.row()
-        row.prop(context.scene, "remove_keyword_line")
-        row.operator("script.remove_sn_lines_operator", text="删除包含特定字符的行")
-        row = layout.row()
-        row.operator("script.remove_blank_lines_operator", text="删除空行")
-        row = layout.row()
         row.operator("script.remove_comments_operator_all", text="删除所有注释")
-        row = layout.row()
+        row.operator("script.remove_blank_lines_operator", text="删除空行")
+        row1 = row.row()
+        row1.prop(context.scene, "remove_keyword_line", text="")
+        row1.operator("script.remove_sn_lines_operator", text="删除包含特定字符的行")
+        
+        row = row.row()
+        row.prop(context.scene, "custom_conditions", text="")
         row.operator("script.remove_duplicate_lines_operator", text="删除重复行")
 
-        row = layout.row()
-        row = layout.row()
+        layout = self.layout
         layout.label(text="批量替换节点组端口里某个名词！")
-        layout.label(text="注意将Bl语言切换为英文检查名字！")
-        row = layout.row()
+        row2 = layout.box()
+        #row = layout.row()
+        #row2.label(text="批量替换节点组端口里某个名词！")
+        row2.label(text="注意将Bl语言切换为英文检查名字！")
+        row = row2.row()
         row.prop(context.scene, "replace_keyword_groupnode", text="")#, text="替换"
         row.label(text="",icon="CON_ARMATURE")
         row.prop(context.scene, "substitute_keyword_groupnode", text="")#, text="为"
-        row = layout.row()
+        row = row2.row()
         row.operator("script.replace_keyword_groupnod_operator", text="替换端口名里关键字")
-        row = layout.row()
+        row = row2.row()
         row.operator("script.replaceed_keyword_groupnod_operator", text="替换端口名")
+
+        layout = self.layout
+        layout.label(text="PO字典提取")
+        row = layout.box()
+        row.prop(context.scene, "po_directory_dirpath")
+        #row = layout.row()
+        row.operator("wm.simple_po_extractor")
 
 class RemoveCommentsOperatorTail(bpy.types.Operator):##仅仅删除每行尾部的注释
     bl_idname = "script.remove_comments_operator_tail"
@@ -385,10 +391,12 @@ class RemoveCommentsOperatorAll(bpy.types.Operator):##删除所有注释
 class RemoveDuplicateLinesOperator(bpy.types.Operator):##删除完全重复的行
     bl_idname = "script.remove_duplicate_lines_operator"
     bl_label = "Remove Duplicate Lines"
-    bl_description = "Remove completely duplicate lines\n删除完全重复的行保留第一个重复行"
+    bl_description = "Remove completely duplicate lines\n删除完全重复的行(排除以关键字开头的行),保留第一个重复行"
 
     def execute(self, context):
         filepath = context.scene.remove_comments_filepath
+        # 获取用户输入的自定义条件字符串
+        custom_conditions = context.scene.custom_conditions.split(";")
         if filepath:
             try:
                 # 打开文件以读取内容
@@ -402,9 +410,16 @@ class RemoveDuplicateLinesOperator(bpy.types.Operator):##删除完全重复的�
                 for line in lines:
                     # 删除行两端的空白字符以防止不同的行被认为是不同的
                     stripped_line = line.strip()
-                    if stripped_line not in seen_lines:
-                        seen_lines.add(stripped_line)
+
+                    # 添加条件：如果某行以 custom_conditions 中的任何一个元素开头，或者是空白行就跳过这行
+                    if not stripped_line or any(stripped_line.startswith(condition) for condition in custom_conditions):
                         unique_lines.append(line)
+
+                    # 添加条件：如果某行以 custom_conditions 中的任何一个元素开头，就跳过这行
+                    elif not any(stripped_line.startswith(condition) for condition in custom_conditions):
+                        if stripped_line not in seen_lines:#逐行扫描后没有出现出现在已看过的里面就是保留
+                            seen_lines.add(stripped_line)
+                            unique_lines.append(line)
 
                 # 写回文件
                 with open(filepath, "w", encoding="utf-8") as f:
@@ -415,7 +430,7 @@ class RemoveDuplicateLinesOperator(bpy.types.Operator):##删除完全重复的�
                 self.report({'INFO'}, f"Deleted {deleted_lines_count} lines with the same content from {filepath}")
 
 
-            # ##保留最后一个重复行
+          # ##保留最后一个重复行
             #     unique_lines = []  # 存储不重复的行
 
             #     for line in reversed(lines):
@@ -609,7 +624,15 @@ def register():
     )
 
     bpy.types.Scene.remove_keyword_line = bpy.props.StringProperty(
-        name='', description='keyword', default='', subtype='BYTE_STRING')
+        name='关键词', description='仅删除包含这个关键词的行', default='', subtype='BYTE_STRING')
+
+    bpy.types.Scene.custom_conditions = bpy.props.StringProperty(
+        name="排除开头关键字",
+        description="排除以关键字开头的行，多个关键字以英文输入 ; 区分",
+        default="#位置;msgstr",
+
+    )
+
 
     #批量替换节点组端口里某个名词
     bpy.types.Scene.replace_keyword_groupnode = bpy.props.StringProperty(
@@ -625,6 +648,7 @@ def unregister():
     del bpy.types.Scene.remove_comments_filepath
     del bpy.types.Scene.po_directory_dirpath
     del bpy.types.Scene.remove_keyword_line
+    del bpy.types.Scene.custom_conditions
 
     del bpy.types.Scene.replace_keyword_groupnode
     del bpy.types.Scene.substitute_keyword_groupnode
